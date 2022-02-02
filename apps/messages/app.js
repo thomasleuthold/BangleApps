@@ -21,8 +21,10 @@
 */
 
 var Layout = require("Layout");
-var fontSmall = "6x8";
-var fontMedium = g.getFonts().includes("6x15")?"6x15":"6x8:2";
+require("FontHaxorNarrow7x17").add(Graphics);
+var fontMedium = g.getFont("FontHaxorNarrow7x17") ;
+var fontSmall = g.getFont("FontHaxorNarrow7x17") ;
+//var fontMedium = g.getFonts().includes("6x15")?"6x15":"6x8:2";
 var fontBig = g.getFonts().includes("12x20")?"12x20":"6x8:2";
 var fontLarge = g.getFonts().includes("6x15")?"6x15:2":"6x8:4";
 var colBg = g.theme.dark ? "#141":"#4f4";
@@ -236,59 +238,63 @@ function showMessage(msgid) {
   }
   // Normal text message display
   var title=msg.title, titleFont = fontLarge, lines;
-  if (title) {
-    var w = g.getWidth()-48;
-    if (g.setFont(titleFont).stringWidth(title) > w)
-      titleFont = fontMedium;
-    if (g.setFont(titleFont).stringWidth(title) > w) {
-      lines = g.wrapString(title, w);
-      title = (lines.length>2) ? lines.slice(0,2).join("\n")+"..." : lines.join("\n");
-    }
-  }
-  var buttons = [
-    {type:"btn", src:getBackImage(), cb:()=>{
-      msg.new = false; saveMessages(); // read mail
-      cancelReloadTimeout(); // don't auto-reload to clock now
-      checkMessages({clockIfNoMsg:1,clockIfAllRead:0,showMsgIfUnread:0});
-    }} // back
-  ];
-  if (msg.positive) {
-    buttons.push({fillx:1});
-    buttons.push({type:"btn", src:getPosImage(), cb:()=>{
-      msg.new = false; saveMessages();
-      cancelReloadTimeout(); // don't auto-reload to clock now
-      Bangle.messageResponse(msg,true);
-      checkMessages({clockIfNoMsg:1,clockIfAllRead:1,showMsgIfUnread:1});
-    }});
-  }
-  if (msg.negative) {
-    buttons.push({fillx:1});
-    buttons.push({type:"btn", src:getNegImage(), cb:()=>{
-      msg.new = false; saveMessages();
-      cancelReloadTimeout(); // don't auto-reload to clock now
-      Bangle.messageResponse(msg,false);
-      checkMessages({clockIfNoMsg:1,clockIfAllRead:1,showMsgIfUnread:1});
-    }});
-  }
-  var bodyFont = fontMedium;
-  lines = g.setFont(bodyFont).wrapString(msg.body, g.getWidth()-10);
-  var body = (lines.length>4) ? lines.slice(0,4).join("\n")+"..." : lines.join("\n");
-  layout = new Layout({ type:"v", c: [
-    {type:"h", fillx:1, bgCol:colBg,  c: [
-      { type:"btn", src:getMessageImage(msg), col:getMessageImageCol(msg), pad: 3, cb:()=>{
-        cancelReloadTimeout(); // don't auto-reload to clock now
-        showMessageSettings(msg);
-      }},
-      { type:"v", fillx:1, c: [
-        {type:"txt", font:fontSmall, label:msg.src||/*LANG*/"Message", bgCol:colBg, fillx:1, pad:2, halign:1 },
-        title?{type:"txt", font:titleFont, label:title, bgCol:colBg, fillx:1, pad:2 }:{},
-      ]},
-    ]},
-    {type:"txt", font:bodyFont, label:body, fillx:1, filly:1, pad:2 },
-    {type:"h",fillx:1, c: buttons}
-  ]});
-  g.clearRect(Bangle.appRect);
-  layout.render();
+    if (!title) { title = "No title"; }
+	g.setFont("Vector:22");
+	var msgLines = g.wrapString(msg.body, g.getWidth()-10);
+	var msgTitleLines = g.wrapString(msg.title, g.getWidth()-10);
+	while (msgTitleLines.length < 3) {
+		msgTitleLines.push("");
+	}
+
+	E.showScroller({
+	  h : 22, c : msgLines.length + msgTitleLines.length + 8,
+	  draw : (idx, r) => {
+		if (idx <= msgTitleLines.length-1) {
+		  g.setBgColor("#004cc7").clearRect(r.x,r.y,r.x+r.w-1,r.y+r.h-1);
+		  g.setColor("#fff");
+		  g.setFont("Vector:22").drawString(msgTitleLines[idx],r.x+5,r.y+1);
+		} else if((idx >= msgTitleLines.length) && (idx <= msgTitleLines.length + msgLines.length - 1)) {
+		  g.setBgColor((idx&1)?"#fff":"#ccc").clearRect(r.x,r.y,r.x+r.w-1,r.y+r.h-1);
+		  g.setColor("#000");
+		  g.setFont("Vector:22").drawString(msgLines[idx-msgTitleLines.length],r.x+5,r.y+1);
+		} else if( (idx >= msgTitleLines.length + msgLines.length) && (idx <= msgTitleLines.length + msgLines.length + 2) ) {
+		  g.setBgColor("#9bfc7e").clearRect(r.x,r.y,r.x+r.w-1,r.y+r.h-1);
+		  g.setColor("#000");
+			if(idx == msgTitleLines.length + msgLines.length + 1) {
+				g.setFont("Vector:22").drawString("Open on Phone",r.x+5,r.y+1); 
+			}		
+		} else if( (idx >= msgTitleLines.length + msgLines.length + 3) && (idx <= msgTitleLines.length + msgLines.length + 5) ) {
+		  g.setBgColor("#fcce7e").clearRect(r.x,r.y,r.x+r.w-1,r.y+r.h-1);
+		  g.setColor("#000");
+			if(idx == msgTitleLines.length + msgLines.length + 4) {
+				g.setFont("Vector:22").drawString("Mark as read",r.x+5,r.y+1); 
+			}		
+		}
+	  },
+	  select : (idx) => {
+		if (idx <= msgTitleLines.length-1) {
+			cancelReloadTimeout(); // don't auto-reload to clock now
+			showMessageSettings(msg);			
+		} else if( (idx >= msgTitleLines.length + msgLines.length) && (idx <= msgTitleLines.length + msgLines.length + 2) ) {
+			msg.new = false; saveMessages();
+			cancelReloadTimeout(); // don't auto-reload to clock now
+			Bangle.messageResponse(msg,true);
+			checkMessages({clockIfNoMsg:1,clockIfAllRead:1,showMsgIfUnread:1}); 
+		} else if( (idx >= msgTitleLines.length + msgLines.length + 3) && (idx >= msgTitleLines.length + msgLines.length + 5) ) {
+			msg.new = false; saveMessages();
+			cancelReloadTimeout(); // don't auto-reload to clock now
+			Bangle.messageResponse(msg,false);
+			checkMessages({clockIfNoMsg:1,clockIfAllRead:1,showMsgIfUnread:1});         
+		}		  
+	  }
+	});
+	
+	setWatch(function(e) { 
+			msg.new = false; saveMessages();
+			cancelReloadTimeout(); // don't auto-reload to clock now
+			checkMessages({clockIfNoMsg:1,clockIfAllRead:0,showMsgIfUnread:1}); 
+		}, BTN, { repeat:false, edge:'falling' });
+
 }
 
 
